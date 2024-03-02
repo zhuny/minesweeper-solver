@@ -1,7 +1,10 @@
+import functools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+import win32api
+import win32con
 import win32gui
 from PIL import Image, ImageChops, ImageGrab
 
@@ -71,7 +74,7 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         width, height = width // 4, height // 4
 
         for i in range(16):
-            if 5 <= i <= 8:
+            if 6 <= i <= 8:
                 continue
 
             y, x = divmod(i, 4)
@@ -148,6 +151,11 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         rect = win32gui.GetWindowRect(hwnd)
         screenshot = ImageGrab.grab(rect, all_screens=True)
 
+        # callback 실행하기
+        for callback in result:
+            callback(rect, screenshot)
+
+    def _load_game_info(self, rect, screenshot):
         middle = (rect[2] - rect[0]) // 2
 
         # 게임오버 되었는지 확인하기
@@ -181,17 +189,42 @@ class MinesweeperWindowInterface(GameInterfaceBase):
             )
             self.place_info[y][x] = result
 
+    def _save_digit_num(self, rect, screenshot):
+        middle = (rect[2] - rect[0]) // 2
+
+        mine = 25
+        offset_x = self.width * mine // 2
+        offset_y = 240
+        padding = 0
+
+        temp_number_info = {
+            (7, 4): '5'
+        }
+        for (x, y), v in temp_number_info.items():
+            left = middle - offset_x + x * mine
+            top = offset_y + y * mine
+
+            self._save_info(
+                screenshot,
+                (
+                    left + padding, top + padding,
+                    left + mine - padding, top + mine - padding
+                ),
+                v
+            )
+
     def _iter_range(self):
         for x in range(self.width):
             for y in range(self.height):
                 yield x, y
 
     def _load_screen_info(self):
-        win32gui.EnumWindows(self._detect_game_rect, [])
+        win32gui.EnumWindows(self._detect_game_rect, [self._load_game_info])
 
     def _check_init(self):
         if not self.is_loaded:
             self._load_screen_info()
+            self.is_loaded = True
 
     def get_info(self) -> GameInfo:
         self._check_init()
@@ -202,6 +235,27 @@ class MinesweeperWindowInterface(GameInterfaceBase):
             is_game_over=self.is_game_over
         )
 
+    def _click_save_place(self, x, y, rect, screenshot):
+        middle = (rect[2] - rect[0]) // 2
+        mine = 25
+        offset_x = self.width * mine // 2
+        offset_y = 240
+
+        left = rect[0] + middle - offset_x + x * mine + mine // 2
+        top = rect[1] + offset_y + y * mine + mine // 2
+
+        win32api.SetCursorPos((left, top))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, left, top, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, left, top, 0, 0)
+
     def set_save_place(self, x, y) -> bool:
-        self._check_init()
+        print(x, y)
+        self.is_loaded = False
+        win32gui.EnumWindows(
+            self._detect_game_rect,
+            [functools.partial(self._click_save_place, x, y)]
+        )
         return True
+
+    def save_digit(self):
+        win32gui.EnumWindows(self._detect_game_rect, [self._save_digit_num])

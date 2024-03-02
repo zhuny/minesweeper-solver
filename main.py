@@ -1,11 +1,12 @@
-from solver.game import MinesweeperWindowInterface
+from puzzle.game import MinesweeperWindowInterface
+from puzzle.solver import MinesweeperSolver
 
 
 def main():
-    game = MinesweeperWindowInterface()
-    info = game.get_info()
-    print(info)
-    print('\n'.join(info.mine_info))
+    # MinesweeperWindowInterface().save_digit()
+    MinesweeperSolver(
+        MinesweeperWindowInterface()
+    ).solve()
 
 
 if __name__ == '__main__':
