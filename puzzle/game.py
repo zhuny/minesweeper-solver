@@ -1,5 +1,9 @@
+import datetime
 import functools
+import re
+import time
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import List
 
@@ -43,13 +47,38 @@ class GameInterfaceBase:
     def get_info(self) -> GameInfo:
         raise NotImplementedError
 
-    def set_save_place(self, x, y) -> bool:
+    def set_safe_place(self, x, y):
         """
         :param x: 안전한 곳이라고 표시할 x위치
         :param y: 안전한 곳이라고 표시할 y위치
         :return: bool - 제대로 선택했는지에 대해서 확인
         """
         raise NotImplementedError
+
+    def set_mine_place(self, x, y):
+        raise NotImplementedError
+
+    def reset(self):
+        raise NotImplementedError
+
+
+class LazyScreenshot:
+    def __init__(self, hwnd):
+        self.hwnd = hwnd
+        self.screenshot = None
+        self.loaded = False
+
+    def _check_loaded(self):
+        if self.loaded:
+            return
+
+        rect = win32gui.GetWindowRect(self.hwnd)
+        self.screenshot = ImageGrab.grab(rect, all_screens=True)
+        self.loaded = True
+
+    def crop(self, box):
+        self._check_loaded()
+        return self.screenshot.crop(box)
 
 
 class MinesweeperWindowInterface(GameInterfaceBase):
@@ -62,8 +91,11 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         self.height = 16
         self.mine_count = 99
         self.place_info = [['-'] * self.width for _ in range(self.height)]
-        self.block_info = list(self._load_block_info())
         self.is_game_over = False
+
+        self.string_list = '012345xxx!->'
+
+        self.block_info = list(self._load_block_info())
 
     def _load_block_info(self):
         if not Path('mine_checker.png').exists():
@@ -73,20 +105,11 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         width, height = canvas.size
         width, height = width // 4, height // 4
 
-        for i in range(16):
-            if 6 <= i <= 8:
+        for i, t in enumerate(self.string_list):
+            if t == 'x':
                 continue
 
             y, x = divmod(i, 4)
-
-            if i <= 8:
-                t = str(i)
-            elif i == 9:
-                t = '!'
-            elif i == 10:
-                t = '-'
-            else:
-                continue
 
             yield canvas.crop(
                 (
@@ -116,14 +139,9 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         return min(color_map_check)[1]
 
     def _save_info(self, screenshot, box, result: str):
-        index = None
+        index = self.string_list.find(result)
 
-        if result.isdigit():
-            index = int(result)
-        elif result == '!':
-            index = 9
-        elif result == '-':
-            index = 10
+        assert 0 <= index
 
         y, x = divmod(index, 4)
 
@@ -149,7 +167,7 @@ class MinesweeperWindowInterface(GameInterfaceBase):
 
         # 스크린샷 찍기
         rect = win32gui.GetWindowRect(hwnd)
-        screenshot = ImageGrab.grab(rect, all_screens=True)
+        screenshot = LazyScreenshot(hwnd)
 
         # callback 실행하기
         for callback in result:
@@ -198,7 +216,7 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         padding = 0
 
         temp_number_info = {
-            (7, 4): '5'
+            (0, 0): '>'
         }
         for (x, y), v in temp_number_info.items():
             left = middle - offset_x + x * mine
@@ -235,7 +253,7 @@ class MinesweeperWindowInterface(GameInterfaceBase):
             is_game_over=self.is_game_over
         )
 
-    def _click_save_place(self, x, y, rect, screenshot):
+    def _click_save_place(self, x, y, down, up, rect, screenshot):
         middle = (rect[2] - rect[0]) // 2
         mine = 25
         offset_x = self.width * mine // 2
@@ -245,17 +263,47 @@ class MinesweeperWindowInterface(GameInterfaceBase):
         top = rect[1] + offset_y + y * mine + mine // 2
 
         win32api.SetCursorPos((left, top))
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, left, top, 0, 0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, left, top, 0, 0)
+        win32api.mouse_event(down, left, top, 0, 0)
+        win32api.mouse_event(up, left, top, 0, 0)
+        time.sleep(0.5)
 
-    def set_save_place(self, x, y) -> bool:
-        print(x, y)
+    def set_safe_place(self, x, y) -> bool:
+        print('Save Place :', x, y)
         self.is_loaded = False
         win32gui.EnumWindows(
             self._detect_game_rect,
-            [functools.partial(self._click_save_place, x, y)]
+            [functools.partial(
+                self._click_save_place,
+                x, y,
+                win32con.MOUSEEVENTF_LEFTDOWN, win32con.MOUSEEVENTF_LEFTUP
+            )]
         )
         return True
 
     def save_digit(self):
         win32gui.EnumWindows(self._detect_game_rect, [self._save_digit_num])
+
+    def set_mine_place(self, x, y):
+        print('Dangerous Place :', x, y)
+        win32gui.EnumWindows(
+            self._detect_game_rect,
+            [functools.partial(
+                self._click_save_place,
+                x, y,
+                win32con.MOUSEEVENTF_RIGHTDOWN, win32con.MOUSEEVENTF_RIGHTUP
+            )]
+        )
+
+    def _reset_game(self, rect, screenshot):
+        middle = (rect[2] + rect[0]) // 2
+        top = rect[1] + 200
+        win32api.SetCursorPos((middle, top))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, middle, top, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, middle, top, 0, 0)
+        time.sleep(0.5)
+
+    def reset(self):
+        win32gui.EnumWindows(
+            self._detect_game_rect,
+            [self._reset_game]
+        )

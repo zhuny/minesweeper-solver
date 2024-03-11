@@ -41,19 +41,22 @@ class MinesweeperSolver:
         self.api: GameInterfaceBase = api
 
     def solve(self):
-        for i in range(100):
+        self.api.reset()
+
+        for i in range(20):
             self._solve_one()
             info = self.api.get_info()
             print('Solving Count', i)
 
             if info.is_game_over:
-                break
+                self.api.reset()
 
     def _solve_one(self):
         info = self.api.get_info()
+        print('\n'.join(info.mine_info))
 
         relation_list = [
-            Relation(self._adj_list(x, y, info), v)
+            self._adj_list(x, y, info, v)
             for x, y, v in self._number_block_list(info.mine_info)
         ]
         normalized: List[Relation] = []
@@ -87,14 +90,18 @@ class MinesweeperSolver:
         for relation in normalized:
             if relation.has_save():
                 for x, y in relation.pos_list:
-                    self.api.set_save_place(x, y)
-                clicked += len(relation.pos_list)
+                    self.api.set_safe_place(x, y)
+                    clicked += 1
             elif relation.has_bomb():
-                bomb_set.update(relation.pos_list)
+                for x, y in relation.pos_list:
+                    if (x, y) not in bomb_set:
+                        self.api.set_mine_place(x, y)
+                        bomb_set.add((x, y))
 
         if clicked == 0:
+            print("Choose random")
             x, y = self._get_random_pos(info, bomb_set)
-            self.api.set_save_place(x, y)
+            self.api.set_safe_place(x, y)
 
     def _get_random_pos(self, info, bomb_set):
         pos_list = [
@@ -121,7 +128,9 @@ class MinesweeperSolver:
                     if 0 < v:
                         yield x, y, v
 
-    def _adj_list(self, x, y, info):
+    def _adj_list(self, x, y, info, v):
+        pos_list = []
+
         for x1 in range(x-1, x+2):
             for y1 in range(y-1, y+2):
                 if x1 == x and y1 == y:
@@ -129,5 +138,10 @@ class MinesweeperSolver:
 
                 if 0 <= x1 < info.width:
                     if 0 <= y1 < info.height:
-                        if info.mine_info[y1][x1] == '-':
-                            yield x1, y1
+                        cell = info.mine_info[y1][x1]
+                        if cell == '-':
+                            pos_list.append((x1, y1))
+                        elif cell == '>':
+                            v -= 1
+
+        return Relation(pos_list, v)
