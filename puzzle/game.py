@@ -61,6 +61,9 @@ class GameInterfaceBase:
     def reset(self):
         raise NotImplementedError
 
+    def wait(self):
+        raise NotImplementedError
+
 
 class LazyScreenshot:
     def __init__(self, hwnd):

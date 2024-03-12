@@ -40,20 +40,22 @@ class MinesweeperSolver:
     def __init__(self, api):
         self.api: GameInterfaceBase = api
 
-    def solve(self):
-        self.api.reset()
+    def solve(self, count=1):
+        self.api.wait()
 
-        for i in range(20):
-            self._solve_one()
-            info = self.api.get_info()
-            print('Solving Count', i)
+        for i in range(count):
+            print('Game :', i+1)
+            self.api.reset()
 
-            if info.is_game_over:
-                self.api.reset()
+            while True:
+                self._solve_one()
+                info = self.api.get_info()
+
+                if info.is_game_over:
+                    break
 
     def _solve_one(self):
         info = self.api.get_info()
-        print('\n'.join(info.mine_info))
 
         relation_list = [
             self._adj_list(x, y, info, v)
@@ -97,9 +99,9 @@ class MinesweeperSolver:
                     if (x, y) not in bomb_set:
                         self.api.set_mine_place(x, y)
                         bomb_set.add((x, y))
+                        clicked += 1
 
         if clicked == 0:
-            print("Choose random")
             x, y = self._get_random_pos(info, bomb_set)
             self.api.set_safe_place(x, y)
 
