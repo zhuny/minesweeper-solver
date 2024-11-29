@@ -54,6 +54,8 @@ class MinesweeperSolver:
                 if info.is_game_over:
                     break
 
+        self.api.wait()
+
     def _solve_one(self):
         info = self.api.get_info()
 

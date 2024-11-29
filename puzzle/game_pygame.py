@@ -8,10 +8,10 @@ from puzzle.game import GameInfo, GameInterfaceBase
 class PygameCanvas:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((1600, 900))
+        self.screen = pygame.display.set_mode((1920, 1080))
         self.font = pygame.font.Font(
-            pygame.font.get_default_font(),
-            24
+            'C:/Users/zhuny/PycharmProjects/video-editor/NanumSquareNeo-eHv.ttf',
+            22
         )
         self.clock = pygame.time.Clock()
         self.check_image = pygame.transform.smoothscale(
@@ -49,7 +49,16 @@ class PygameCanvas:
             'place': self._fill_and_get_subsurface([
                 offset_width + gap, offset_height + gap * 2 + size,
                 size * info.width, size * info.height
-            ], gap)
+            ], gap),
+            'stats': self._fill_and_get_subsurface([
+                offset_width + total_width - size * 7 - gap,
+                offset_height + gap,
+                size * 7, size
+            ], gap),
+            'zhuny': self.screen.subsurface([
+                offset_width, offset_height,
+                total_width, gap * 2 + size
+            ])
         }
 
     def _fill_and_get_subsurface(self, box, gap):
@@ -66,6 +75,8 @@ class PygameCanvas:
         size = 32
 
         self._draw_info(subsurfaces['size'], info)
+        self._draw_stats(subsurfaces['stats'], info)
+        self._draw_zhuny(subsurfaces['zhuny'])
 
         for j, row in enumerate(info.mine_info):
             for i, cell in enumerate(row):
@@ -105,12 +116,15 @@ class PygameCanvas:
                 self._blit_center(screen, text_surface, this_box)
         elif cell == '>':
             self._blit_center(screen, self.check_image, this_box)
-        elif cell == '!':
+        elif cell in '!*':
+            radius = size * 2 / 5
+            if cell == '*':
+                radius *= 0.7
             pygame.draw.circle(
                 screen,
                 'red',
                 pygame.Rect(this_box).center,
-                size * 2 / 5
+                radius
             )
 
     def _draw_info(self, screen, info):
@@ -125,6 +139,29 @@ class PygameCanvas:
             [4, 0, screen.get_width()-4, screen.get_height()],
             left='first'
         )
+
+    def _draw_stats(self, screen, info):
+        if info.try_count == 0:
+            rate_text = '-'
+        else:
+            rate = info.succeed_count * 100 / info.try_count
+            rate_text = f'{rate:.02f}%'
+
+        text_surface = self.font.render(
+            f'{info.succeed_count} / {info.try_count} ({rate_text})',
+            True,
+            (223, 223, 223)
+        )
+        self._blit_center(
+            screen,
+            text_surface,
+            [0, 0, screen.get_width()-4, screen.get_height()],
+            left='last'
+        )
+
+    def _draw_zhuny(self, screen):
+        text_surface = self.font.render('zhuny', True, '#E0BFE6')
+        self._blit_center(screen, text_surface, screen.get_rect())
 
     def _blit_center(self,
                      screen, surface, box,
@@ -160,6 +197,8 @@ class PygameInterface(GameInterfaceBase):
         self.is_init = False
         self.is_game_over = False
         self.is_good = False
+        self.try_count = 0
+        self.succeed_count = 0
 
         self.canvas = PygameCanvas()
 
@@ -171,7 +210,9 @@ class PygameInterface(GameInterfaceBase):
             width=self.width,
             height=self.height,
             is_game_over=self.is_game_over,
-            mine_info=[''.join(row) for row in self.mine_info]
+            mine_info=[''.join(row) for row in self.mine_info],
+            try_count=self.try_count,
+            succeed_count=self.succeed_count
         )
 
     def set_safe_place(self, x, y):
@@ -187,6 +228,10 @@ class PygameInterface(GameInterfaceBase):
             self.is_game_over = True
             self.is_good = False
             self.mine_info[y][x] = '!'
+            self.try_count += 1
+            for xx, yy in self.mine_position:
+                if self.mine_info[yy][xx] == '-':
+                    self.mine_info[yy][xx] = '*'
             self._draw()
             return
 
@@ -222,6 +267,9 @@ class PygameInterface(GameInterfaceBase):
                     for x, y in self.mine_position
                 )
             )
+            self.try_count += 1
+            if self.is_good:
+                self.succeed_count += 1
         # self._show_info()
         self._draw()
 

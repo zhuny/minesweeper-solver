@@ -1,12 +1,9 @@
-from puzzle.game import MinesweeperWindowInterface
 from puzzle.game_pygame import PygameInterface
 from puzzle.solver import MinesweeperSolver
 
 
 def main():
-    # 30/20/100
-    w, h = 49, 26
-    # MinesweeperWindowInterface().save_digit()
+    w, h = 59, 31
     MinesweeperSolver(
         PygameInterface(w, h, w * h // 6)
     ).solve(20)

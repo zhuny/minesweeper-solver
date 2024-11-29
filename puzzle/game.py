@@ -20,6 +20,17 @@ class GameInfo:
     height: int
     is_game_over: bool
     mine_info: List[str]
+    try_count: int
+    succeed_count: int
+
+    """
+    mine_info
+    - : 확인하지 않음
+    0 ~ 8 : 주변 지뢰 갯수
+    > : 지뢰 표시
+    ! : 안전한 곳이라 표현했지만 틀린 장소
+    * : 게임 오버 이후 지뢰 위치들
+    """
 
 
 def average_color(histogram):
