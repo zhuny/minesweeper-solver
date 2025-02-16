@@ -2,7 +2,7 @@ import functools
 
 import pydantic
 
-from core.drawer import RectangleDrawer, TableDrawer
+from core.drawer import GapListInfo, RectangleDrawer, TableCellInfo, TableDrawer
 from core.world import WorldData
 
 
@@ -16,8 +16,11 @@ class SudokuCell(pydantic.BaseModel):
     is_set: bool = False
     candidate_list: list[int] = pydantic.Field(default_factory=list)
 
-    def _build(self):
-        return RectangleDrawer(width=50, height=50)
+    def build(self):
+        return TableCellInfo(
+            x=self.x, y=self.y,
+            drawer=RectangleDrawer(width=50, height=50)
+        )
 
 
 class SudokuWorldData(WorldData):
@@ -37,13 +40,19 @@ class SudokuWorldData(WorldData):
             for y in range(self.size):
                 self.cell_info[x, y] = SudokuCell(x=x, y=y)
 
-    def _build(self):
+    def build(self):
         return TableDrawer(
             cell_list=[
-                cell._build()
+                cell.build()
                 for cell in self.cell_info.values()
             ],
             row_gap=self._build_gap(self.row),
             col_gap=self._build_gap(self.col),
             cell_width=self.size, cell_height=self.size
         )
+
+    def _build_gap(self, step):
+        gap_list = [10] * (self.size + 1)
+        for pos in range(0, self.size, step):
+            gap_list[pos] = 30
+        return GapListInfo(value=gap_list)
