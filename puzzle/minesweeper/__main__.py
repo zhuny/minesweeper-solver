@@ -1,5 +1,5 @@
-from puzzle.game_pygame import PygameInterface
-from puzzle.solver import MinesweeperSolver
+from puzzle.minesweeper.game_pygame import PygameInterface
+from puzzle.minesweeper.solver import MinesweeperSolver
 
 
 def main():
