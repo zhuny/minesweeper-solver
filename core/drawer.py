@@ -1,12 +1,10 @@
 import collections
 import enum
-import typing
 
 import pygame.draw
 from pydantic import BaseModel, Field
 
-
-Color = tuple[int, int, int]
+from core.theme import MyColor
 
 
 class TableGapInfo(BaseModel):
@@ -73,12 +71,18 @@ class GeometryInfo(BaseModel):
     h: int | None = None
 
     def offset_rect(self, x, y):
-        return [x + self.x, y + self.y, self.w, self.h]
+        return GeometryInfo(
+            x=self.x + x, y=self.y + y,
+            w=self.w, h=self.h
+        )
+
+    def as_tuple(self):
+        return self.x, self.y, self.w, self.h
 
 
 class DrawerBase(BaseModel):
     pos: GeometryInfo = Field(default_factory=GeometryInfo)
-    color: Color = [224, 244, 244]
+    color: MyColor = None
 
     def model_post_init(self, __context) -> None:
         """
@@ -155,23 +159,28 @@ class RectangleDrawer(DrawerBase):
 
     def draw(self, offset_x, offset_y, screen):
         pygame.draw.rect(
-            screen, self.color,
-            self.pos.offset_rect(offset_x, offset_y)
+            screen, self.color.as_tuple(),
+            self.pos.offset_rect(offset_x, offset_y).as_tuple()
         )
 
 
 class RectangleTextDrawer(RectangleDrawer):
     text: str
+    text_size: int
+    text_color: MyColor
 
     def draw(self, offset_x, offset_y, screen):
         super().draw(offset_x, offset_y, screen)
 
-        x = offset_x + self.pos.x + self.pos.w // 2
-        y = offset_y + self.pos.y + self.pos.h // 2
+        from core.draw_it import FontDrawer, blit_center
 
-        pygame.draw.circle(
-            screen, self.color,
-            (x, y), 10
+        surface = FontDrawer.render_text(
+            self.text, self.text_size,
+            self.text_color
+        )
+        blit_center(
+            screen, surface,
+            self.pos.offset_rect(offset_x, offset_y)
         )
 
 
@@ -231,8 +240,8 @@ class TableDrawer(DrawerBase):
 
     def draw(self, offset_x, offset_y, screen):
         pygame.draw.rect(
-            screen, self.color,
-            self.pos.offset_rect(offset_x, offset_y)
+            screen, self.color.as_tuple(),
+            self.pos.offset_rect(offset_x, offset_y).as_tuple()
         )
 
         offset_x += self.pos.x

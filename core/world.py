@@ -1,6 +1,8 @@
 import pygame.time
 from pydantic import BaseModel
 
+from core.theme import get_default_theme, Theme
+
 
 class WorldData(BaseModel):
     pass
@@ -18,8 +20,9 @@ class WorldDrawer(BaseModel):
         self._screen = None
         self._node = None
         self._is_running = True
+        self._theme = get_default_theme()
 
-    def build(self):
+    def build(self, theme: Theme):
         raise NotImplementedError(type(self))
 
     def __enter__(self):
@@ -30,7 +33,7 @@ class WorldDrawer(BaseModel):
         pygame.quit()
 
     def _init_node(self):
-        self._node = self.build()
+        self._node = self.build(self._theme)
 
         s_width, s_height = self._screen.get_size()
         self._node.pos.x = (s_width - self._node.pos.w) // 2
@@ -45,6 +48,7 @@ class WorldDrawer(BaseModel):
         pass
 
     def _draw_screen(self):
+        self._screen.fill(self._theme.color.background.as_tuple())
         self._node.draw(0, 0, self._screen)
         pygame.display.flip()
 
