@@ -1,9 +1,11 @@
 import collections
 import enum
+from typing import Annotated, Any
 
 import pygame.draw
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
+from core.handler import EventHandler
 from core.theme import MyColor
 
 
@@ -92,6 +94,7 @@ class GeometryInfo(BaseModel):
 class DrawerBase(BaseModel):
     pos: GeometryInfo = Field(default_factory=GeometryInfo)
     color: MyColor = None
+    on_click: list[EventHandler] = Field(default_factory=list)
 
     @property
     def cls_name(self):
@@ -184,7 +187,14 @@ class RectangleDrawer(DrawerBase):
 
 
 class RectangleTextDrawer(RectangleDrawer):
-    text: str
+    @staticmethod
+    def wrap_to_str(value: Any):
+        if value is None:
+            return ''
+
+        return str(value)
+
+    text: Annotated[str, BeforeValidator(wrap_to_str)]
     text_size: int
     text_color: MyColor
 

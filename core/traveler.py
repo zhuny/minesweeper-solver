@@ -82,5 +82,8 @@ class EventHandleTraveler(Traveler):
         self.pos_stack.append(drawable.rel_pos(self.top_pos()))
 
     def pop_drawable(self, drawable: DrawerBase):
+        for handler in drawable.on_click:
+            handler.handle()
+
         self.pos_stack.pop()
         super().pop_drawable(drawable)

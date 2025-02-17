@@ -29,7 +29,7 @@ class WorldDrawer(BaseModel):
 
     def __enter__(self):
         pygame.init()
-        self._screen = pygame.display.set_mode((1024, 600))
+        self._screen = pygame.display.set_mode((1200, 900))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pygame.quit()
@@ -42,15 +42,18 @@ class WorldDrawer(BaseModel):
         self._node.pos.y = (s_height - self._node.pos.h) // 2
 
     def _handle_event(self):
+        updated = False
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 self._is_running = False
             elif e.type == pygame.MOUSEBUTTONUP:
                 if self._node.is_contained(e.pos):
                     EventHandleTraveler(self._node, e.pos).visit()
+                    updated = True
 
-    def _update_data(self):
-        pass
+        if updated:
+            self._is_draw_needed = True
+            self._init_node()
 
     def _draw_screen(self):
         if self._is_draw_needed:
@@ -67,7 +70,6 @@ class WorldDrawer(BaseModel):
 
             while self._is_running:
                 self._handle_event()
-                self._update_data()
                 self._draw_screen()
 
                 clock.tick(15)

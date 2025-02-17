@@ -2,6 +2,7 @@ import functools
 import re
 from typing import Any
 
+import pygame
 from pydantic import BaseModel, model_validator
 
 """
@@ -16,7 +17,7 @@ class MyColor(BaseModel):
     b: int
 
     def as_tuple(self):
-        return self.r, self.g, self.b
+        return pygame.Color(self.r, self.g, self.b)
 
     @model_validator(mode='before')
     @classmethod
@@ -45,6 +46,14 @@ class MyColor(BaseModel):
         whole_color_re = '#' + one_color_re * 3
         return re.compile(whole_color_re)
 
+    def bright(self, bright_delta):
+        color = self.as_tuple()
+        hsla = list(color.hsla)
+        hsla[2] += bright_delta
+        hsla[2] = max(min(100, hsla[2]), 0)
+        color.hsla = hsla
+        return MyColor(r=color.r, g=color.g, b=color.b)
+
 
 class ThemeColor(BaseModel):
     primary: MyColor
@@ -65,6 +74,7 @@ class ThemeColor(BaseModel):
 
 class Theme(BaseModel):
     color: ThemeColor
+    variant_direction: int  # -100 ~ 100 사이
 
 
 def get_default_theme():
@@ -82,5 +92,6 @@ def get_default_theme():
             on_background="#000000",
             on_surface="#000000",
             on_error="#FFFFFF"
-        )
+        ),
+        variant_direction=25
     )
