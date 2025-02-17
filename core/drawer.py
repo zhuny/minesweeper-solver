@@ -76,6 +76,15 @@ class GeometryInfo(BaseModel):
             w=self.w, h=self.h
         )
 
+    def is_contained(self, x, y):
+        return (
+            self.x <= x < self.x + self.w and
+            self.y <= y < self.y + self.h
+        )
+
+    def rel_pos(self, x, y):
+        return x - self.x, y - self.y
+
     def as_tuple(self):
         return self.x, self.y, self.w, self.h
 
@@ -83,6 +92,10 @@ class GeometryInfo(BaseModel):
 class DrawerBase(BaseModel):
     pos: GeometryInfo = Field(default_factory=GeometryInfo)
     color: MyColor = None
+
+    @property
+    def cls_name(self):
+        return type(self).__name__
 
     def model_post_init(self, __context) -> None:
         """
@@ -94,6 +107,12 @@ class DrawerBase(BaseModel):
 
     def draw(self, offset_x, offset_y, screen):
         raise NotImplementedError(type(self))
+
+    def is_contained(self, pos):
+        return self.pos.is_contained(pos[0], pos[1])
+
+    def rel_pos(self, pos):
+        return self.pos.rel_pos(pos[0], pos[1])
 
 
 class LayerDirection(enum.Enum):

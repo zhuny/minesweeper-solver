@@ -2,6 +2,7 @@ import pygame.time
 from pydantic import BaseModel
 
 from core.theme import get_default_theme, Theme
+from core.traveler import EventHandleTraveler
 
 
 class WorldData(BaseModel):
@@ -28,7 +29,7 @@ class WorldDrawer(BaseModel):
 
     def __enter__(self):
         pygame.init()
-        self._screen = pygame.display.set_mode((1920, 1080))
+        self._screen = pygame.display.set_mode((1024, 600))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pygame.quit()
@@ -44,6 +45,9 @@ class WorldDrawer(BaseModel):
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 self._is_running = False
+            elif e.type == pygame.MOUSEBUTTONUP:
+                if self._node.is_contained(e.pos):
+                    EventHandleTraveler(self._node, e.pos).visit()
 
     def _update_data(self):
         pass
