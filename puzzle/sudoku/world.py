@@ -1,4 +1,4 @@
-from core.drawer import (LayerDirection, LayerDrawer,
+from core.drawer import (ConstantExcludeGapInfo, LayerDirection, LayerDrawer,
                          RectangleTextDrawer)
 from core.world import WorldDrawer
 
@@ -15,10 +15,10 @@ class SudokuWorldDrawer(WorldDrawer):
                             text="Generate Problem"
                         )
                     ],
-                    gap=10,
+                    gap=ConstantExcludeGapInfo(value=10, size=1),
                     direction=LayerDirection.COLUMN
                 )
             ],
-            gap=10,
+            gap=ConstantExcludeGapInfo(value=30, size=2),
             direction=LayerDirection.ROW
         )

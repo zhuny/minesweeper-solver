@@ -19,7 +19,7 @@ class SudokuCell(pydantic.BaseModel):
     def build(self):
         return TableCellInfo(
             x=self.x, y=self.y,
-            drawer=RectangleDrawer(width=50, height=50)
+            drawer=RectangleDrawer(width=50, height=50, color=(0, 0, 0))
         )
 
 
@@ -48,11 +48,12 @@ class SudokuWorldData(WorldData):
             ],
             row_gap=self._build_gap(self.row),
             col_gap=self._build_gap(self.col),
+            color=(191, 191, 191),
             cell_width=self.size, cell_height=self.size
         )
 
     def _build_gap(self, step):
-        gap_list = [10] * (self.size + 1)
-        for pos in range(0, self.size, step):
-            gap_list[pos] = 30
+        gap_list = [8] * (self.size + 1)
+        for pos in range(0, self.size + 1, step):
+            gap_list[pos] = 20
         return GapListInfo(value=gap_list)

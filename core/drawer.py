@@ -1,7 +1,12 @@
 import collections
 import enum
+import typing
 
+import pygame.draw
 from pydantic import BaseModel, Field
+
+
+Color = tuple[int, int, int]
 
 
 class TableGapInfo(BaseModel):
@@ -67,14 +72,23 @@ class GeometryInfo(BaseModel):
     w: int | None = None
     h: int | None = None
 
+    def offset_rect(self, x, y):
+        return [x + self.x, y + self.y, self.w, self.h]
+
 
 class DrawerBase(BaseModel):
     pos: GeometryInfo = Field(default_factory=GeometryInfo)
+    color: Color = [224, 244, 244]
 
     def model_post_init(self, __context) -> None:
         """
         Use this function to initialize GeometryInfo
+        현재 node는 w, h를 정의해야 하며
+        parent는 child의 x, y를 정의해 주어야 한다.
         """
+        raise NotImplementedError(type(self))
+
+    def draw(self, offset_x, offset_y, screen):
         raise NotImplementedError(type(self))
 
 
@@ -96,19 +110,39 @@ class MaxSumProcess:
 class LayerDrawer(DrawerBase):
     children: list[DrawerBase]
     direction: LayerDirection
-    gap: int
+    gap: TableGapInfo
 
     def model_post_init(self, __context) -> None:
-        row_pos_list = []
-        col_pos_list = []
+        row_width_list = []
+        col_width_list = []
 
         for child in self.children:
-            row_pos_list.append(child.pos.w)
-            col_pos_list.append(child.pos.h)
+            row_width_list.append(child.pos.w)
+            col_width_list.append(child.pos.h)
 
         match self.direction:
             case LayerDirection.ROW:
-                self.pos.x
+                row_pos_list = self.gap.build_pos(row_width_list)
+                for pos, child in zip(row_pos_list, self.children):
+                    child.pos.x = pos
+                    child.pos.y = 0
+                self.pos.w = row_pos_list[-1]
+                self.pos.h = max(col_width_list)
+
+            case LayerDirection.COLUMN:
+                col_pos_list = self.gap.build_pos(col_width_list)
+                for pos, child in zip(col_pos_list, self.children):
+                    child.pos.x = 0
+                    child.pos.y = pos
+                self.pos.w = max(row_width_list)
+                self.pos.h = col_pos_list[-1]
+
+    def draw(self, offset_x, offset_y, screen):
+        offset_x += self.pos.x
+        offset_y += self.pos.y
+
+        for child in self.children:
+            child.draw(offset_x, offset_y, screen)
 
 
 class RectangleDrawer(DrawerBase):
@@ -119,9 +153,26 @@ class RectangleDrawer(DrawerBase):
         self.pos.w = self.width
         self.pos.h = self.height
 
+    def draw(self, offset_x, offset_y, screen):
+        pygame.draw.rect(
+            screen, self.color,
+            self.pos.offset_rect(offset_x, offset_y)
+        )
+
 
 class RectangleTextDrawer(RectangleDrawer):
     text: str
+
+    def draw(self, offset_x, offset_y, screen):
+        super().draw(offset_x, offset_y, screen)
+
+        x = offset_x + self.pos.x + self.pos.w // 2
+        y = offset_y + self.pos.y + self.pos.h // 2
+
+        pygame.draw.circle(
+            screen, self.color,
+            (x, y), 10
+        )
 
 
 class MaxContainer(collections.defaultdict):
@@ -148,6 +199,7 @@ class TableDrawer(DrawerBase):
     # TODO: DO field validation
     row_gap: TableGapInfo
     col_gap: TableGapInfo
+
     cell_width: int
     cell_height: int
 
@@ -176,3 +228,15 @@ class TableDrawer(DrawerBase):
 
         self.pos.w = row_pos_list[-1]
         self.pos.h = col_pos_list[-1]
+
+    def draw(self, offset_x, offset_y, screen):
+        pygame.draw.rect(
+            screen, self.color,
+            self.pos.offset_rect(offset_x, offset_y)
+        )
+
+        offset_x += self.pos.x
+        offset_y += self.pos.y
+
+        for cell in self.cell_list:
+            cell.drawer.draw(offset_x, offset_y, screen)

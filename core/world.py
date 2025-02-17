@@ -29,6 +29,13 @@ class WorldDrawer(BaseModel):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pygame.quit()
 
+    def _init_node(self):
+        self._node = self.build()
+
+        s_width, s_height = self._screen.get_size()
+        self._node.pos.x = (s_width - self._node.pos.w) // 2
+        self._node.pos.y = (s_height - self._node.pos.h) // 2
+
     def _handle_event(self):
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -38,12 +45,14 @@ class WorldDrawer(BaseModel):
         pass
 
     def _draw_screen(self):
-        pass
+        self._node.draw(0, 0, self._screen)
+        pygame.display.flip()
 
     def main_loop(self):
         with self:
+            self._init_node()
+
             clock = pygame.time.Clock()
-            self._node = self.build()
 
             while self._is_running:
                 self._handle_event()
