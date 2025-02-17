@@ -20,6 +20,7 @@ class WorldDrawer(BaseModel):
         self._screen = None
         self._node = None
         self._is_running = True
+        self._is_draw_needed = True
         self._theme = get_default_theme()
 
     def build(self, theme: Theme):
@@ -48,9 +49,11 @@ class WorldDrawer(BaseModel):
         pass
 
     def _draw_screen(self):
-        self._screen.fill(self._theme.color.background.as_tuple())
-        self._node.draw(0, 0, self._screen)
-        pygame.display.flip()
+        if self._is_draw_needed:
+            self._screen.fill(self._theme.color.background.as_tuple())
+            self._node.draw(0, 0, self._screen)
+            self._is_draw_needed = False
+            pygame.display.flip()
 
     def main_loop(self):
         with self:
