@@ -2,7 +2,8 @@ from core.drawer import (ConstantExcludeGapInfo, LayerDirection, LayerDrawer,
                          RectangleTextDrawer)
 from core.theme import Theme
 from core.world import WorldData, WorldDrawer
-from puzzle.sudoku.handler import GenerateProblemClickHandler
+from puzzle.sudoku.handler import (ClearCellClickHandler,
+                                   GenerateProblemClickHandler)
 
 
 class SudokuWorldDrawer(WorldDrawer):
@@ -14,19 +15,22 @@ class SudokuWorldDrawer(WorldDrawer):
                     children=[
                         RectangleTextDrawer(
                             width=200, height=50,
-                            text="Generate Problem",
+                            text=text,
                             color=theme.color.primary,
                             text_color=theme.color.on_primary,
                             text_size=20,
-                            on_click=[
-                                GenerateProblemClickHandler(target=self.data)
-                            ]
+                            on_click=[handler_cls(target=self.data)]
                         )
+                        for text, handler_cls in self.button_list()
                     ],
-                    gap=ConstantExcludeGapInfo(value=10, size=1),
+                    gap=ConstantExcludeGapInfo(value=10, size=2),
                     direction=LayerDirection.COLUMN
                 )
             ],
             gap=ConstantExcludeGapInfo(value=30, size=2),
             direction=LayerDirection.ROW
         )
+
+    def button_list(self):
+        yield "Generate Problem", GenerateProblemClickHandler
+        yield "Clear", ClearCellClickHandler

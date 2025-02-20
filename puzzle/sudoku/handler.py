@@ -93,3 +93,11 @@ class GenerateProblemClickHandler(EventHandler):
     def _frame(self, n):
         for i in range(n):
             yield i
+
+
+class ClearCellClickHandler(EventHandler):
+    def handle(self):
+        from puzzle.sudoku.data import OneNumberCell
+
+        for cell in self.target.cell_info.values():
+            cell.child = OneNumberCell()
