@@ -5,8 +5,9 @@ from puzzle.sudoku.solver import SudokuWorldSolver
 
 def main():
     SudokuWorldDrawer(
-        data=SudokuWorldData(row=4, col=3),
-        solver=SudokuWorldSolver()
+        data=SudokuWorldData(row=3, col=3),
+        solver=SudokuWorldSolver(),
+        screen_size=(1024, 600)
     ).main_loop()
 
 

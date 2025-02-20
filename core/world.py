@@ -16,6 +16,7 @@ class WorldSolver(BaseModel):
 class WorldDrawer(BaseModel):
     data: WorldData
     solver: WorldSolver
+    screen_size: tuple[int, int]
 
     def model_post_init(self, __context) -> None:
         self._screen = None
@@ -23,19 +24,20 @@ class WorldDrawer(BaseModel):
         self._is_running = True
         self._is_draw_needed = True
         self._theme = get_default_theme()
+        self._animation = []
 
-    def build(self, theme: Theme):
+    def build(self, theme: Theme, data: WorldData):
         raise NotImplementedError(type(self))
 
     def __enter__(self):
         pygame.init()
-        self._screen = pygame.display.set_mode((1200, 900))
+        self._screen = pygame.display.set_mode(self.screen_size)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pygame.quit()
 
     def _init_node(self):
-        self._node = self.build(self._theme)
+        self._node = self.build(self._theme, self.data)
 
         s_width, s_height = self._screen.get_size()
         self._node.pos.x = (s_width - self._node.pos.w) // 2
@@ -48,15 +50,26 @@ class WorldDrawer(BaseModel):
                 self._is_running = False
             elif e.type == pygame.MOUSEBUTTONUP:
                 if self._node.is_contained(e.pos):
-                    EventHandleTraveler(self._node, e.pos).visit()
+                    self._animation.extend(
+                        EventHandleTraveler(self._node, e.pos).visit()
+                    )
                     updated = True
 
         if updated:
             self._is_draw_needed = True
-            self._init_node()
+
+    def _update(self):
+        animation_list = []
+        for animation in self._animation:
+            for _ in animation:
+                self._is_draw_needed = True
+                animation_list.append(animation)
+                break
+        self._animation = animation_list
 
     def _draw_screen(self):
         if self._is_draw_needed:
+            self._init_node()
             self._screen.fill(self._theme.color.background.as_tuple())
             self._node.draw(0, 0, self._screen)
             self._is_draw_needed = False
@@ -70,6 +83,7 @@ class WorldDrawer(BaseModel):
 
             while self._is_running:
                 self._handle_event()
+                self._update()
                 self._draw_screen()
 
                 clock.tick(15)

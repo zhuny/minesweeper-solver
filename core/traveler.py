@@ -1,3 +1,5 @@
+import typing
+
 from core.drawer import DrawerBase, TableCellInfo
 
 
@@ -33,6 +35,11 @@ class Traveler:
                     self.pop_drawable
                 )(drawable)
 
+        return self.end()
+
+    def end(self):
+        pass
+
     def get_children(self, drawable: DrawerBase):
         return self._travel_model(drawable, drawable)
 
@@ -67,6 +74,10 @@ class EventHandleTraveler(Traveler):
         super().__init__(drawable)
         self.pos = pos
         self.pos_stack = [pos]
+        self.animation = []
+
+    def end(self):
+        return self.animation
 
     def top_pos(self):
         return self.pos_stack[-1]
@@ -83,7 +94,9 @@ class EventHandleTraveler(Traveler):
 
     def pop_drawable(self, drawable: DrawerBase):
         for handler in drawable.on_click:
-            handler.handle()
+            func = handler.handle()
+            if isinstance(func, typing.Generator):
+                self.animation.append(func)
 
         self.pos_stack.pop()
         super().pop_drawable(drawable)

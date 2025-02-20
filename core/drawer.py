@@ -1,6 +1,6 @@
 import collections
 import enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 import pygame.draw
 from pydantic import BaseModel, BeforeValidator, Field
@@ -93,7 +93,7 @@ class GeometryInfo(BaseModel):
 
 class DrawerBase(BaseModel):
     pos: GeometryInfo = Field(default_factory=GeometryInfo)
-    color: MyColor = None
+    color: Optional[MyColor] = Field(default=None)
     on_click: list[EventHandler] = Field(default_factory=list)
 
     @property
@@ -180,6 +180,9 @@ class RectangleDrawer(DrawerBase):
         self.pos.h = self.height
 
     def draw(self, offset_x, offset_y, screen):
+        if self.color is None:
+            return
+
         pygame.draw.rect(
             screen, self.color.as_tuple(),
             self.pos.offset_rect(offset_x, offset_y).as_tuple()
@@ -242,6 +245,10 @@ class TableDrawer(DrawerBase):
     cell_height: int
 
     def model_post_init(self, __context) -> None:
+        # value check
+        if self.color is None:
+            raise ValueError("Check color")
+
         # 각 column, row 별로 크기 계산
         row_size_container = MaxContainer()
         col_size_container = MaxContainer()

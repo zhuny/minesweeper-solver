@@ -2,7 +2,8 @@ import functools
 
 import pydantic
 
-from core.drawer import (GapListInfo, RectangleTextDrawer,
+from core.drawer import (ConstantGapInfo, GapListInfo,
+                         RectangleTextDrawer,
                          TableCellInfo, TableDrawer)
 from core.theme import Theme
 from core.world import WorldData
@@ -11,6 +12,40 @@ from puzzle.sudoku.handler import TableCellClickHandler
 
 class CandidateCell(pydantic.BaseModel):
     candidate_list: list[int] = pydantic.Field(default_factory=list)
+    candidate_set: set[int] = pydantic.Field(default_factory=set, init=False)
+
+    def model_post_init(self, __context):
+        self.candidate_set.update(self.candidate_list)
+
+    def build(self,
+              theme: Theme, root: 'SudokuWorldData',
+              parent, color, is_selected):
+        return TableDrawer(
+            cell_width=root.row, cell_height=root.col,
+            row_gap=ConstantGapInfo(value=0),
+            col_gap=ConstantGapInfo(value=0),
+            color=color,
+            cell_list=[
+                self._build_cell(i, theme, root)
+                for i in range(1, root.size + 1)
+            ]
+        )
+
+    def remove(self, value):
+        if value in self.candidate_set:
+            self.candidate_set.remove(value)
+            self.candidate_list.remove(value)
+
+    def _build_cell(self, index, theme, root):
+        y, x = divmod(index - 1, root.row)
+        return TableCellInfo(
+            x=x, y=y,
+            drawer=RectangleTextDrawer(
+                width=16, height=16,
+                text=index if index in self.candidate_set else "",
+                text_size=16, text_color="#777777"
+            )
+        )
 
 
 class OneNumberCell(pydantic.BaseModel):
@@ -20,14 +55,10 @@ class OneNumberCell(pydantic.BaseModel):
     # 값이 지정되지 않은 경우 False
     is_fixed: bool = True
 
-    def build(self, theme: Theme, is_selected, parent):
+    def build(self, theme: Theme, root, parent, color, is_selected):
         return RectangleTextDrawer(
             width=50, height=50,
-            color=(
-                theme.color.primary
-                if is_selected else
-                theme.color.surface
-            ),
+            color=color,
             text=self.value,
             text_size=30,
             text_color=self._get_text_color(theme, is_selected),
@@ -51,10 +82,15 @@ class SudokuCell(pydantic.BaseModel):
     child: CandidateCell | OneNumberCell = OneNumberCell()
     is_selected: bool = False  # 퍼즐을 푸는 상황과 상관없이 해당 셀을 강조하고 싶을 때
 
-    def build(self, theme: Theme):
+    def build(self, theme: Theme, root):
+        if self.is_selected:
+            color = theme.color.primary
+        else:
+            color = theme.color.surface
+
         return TableCellInfo(
             x=self.x, y=self.y,
-            drawer=self.child.build(theme, self.is_selected, self)
+            drawer=self.child.build(theme, root, self, color, self.is_selected)
         )
 
 
@@ -75,10 +111,10 @@ class SudokuWorldData(WorldData):
             for y in range(self.size):
                 self.cell_info[x, y] = SudokuCell(x=x, y=y)
 
-    def build(self, theme: Theme):
+    def build(self, theme: Theme, root):
         return TableDrawer(
             cell_list=[
-                cell.build(theme)
+                cell.build(theme, root)
                 for cell in self.cell_info.values()
             ],
             row_gap=self._build_gap(self.row),
