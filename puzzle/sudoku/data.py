@@ -3,7 +3,7 @@ import functools
 
 import pydantic
 
-from core.drawer import (ConstantGapInfo, GapListInfo,
+from core.drawer import (CenteredRectangle, ConstantGapInfo, GapListInfo,
                          RectangleTextDrawer,
                          TableCellInfo, TableDrawer)
 from core.theme import Theme
@@ -31,15 +31,18 @@ class CandidateCell(pydantic.BaseModel):
     def build(self,
               theme: Theme, root: 'SudokuWorldData',
               parent, color, is_selected):
-        return TableDrawer(
-            cell_width=root.row, cell_height=root.col,
-            row_gap=ConstantGapInfo(value=0),
-            col_gap=ConstantGapInfo(value=0),
-            color=color,
-            cell_list=[
-                self._build_cell(i, theme, root)
-                for i in range(1, root.size + 1)
-            ]
+        return CenteredRectangle(
+            child=TableDrawer(
+                cell_width=root.row, cell_height=root.col,
+                row_gap=ConstantGapInfo(value=0),
+                col_gap=ConstantGapInfo(value=0),
+                cell_list=[
+                    self._build_cell(i, theme, root)
+                    for i in range(1, root.size + 1)
+                ]
+            ),
+            width=48, height=48,
+            color=color
         )
 
     def remove(self, value):
@@ -49,12 +52,13 @@ class CandidateCell(pydantic.BaseModel):
 
     def _build_cell(self, index, theme, root):
         y, x = divmod(index - 1, root.row)
+        size = 48 // max(root.row, root.col)
         return TableCellInfo(
             x=x, y=y,
             drawer=RectangleTextDrawer(
-                width=16, height=16,
+                width=size, height=size,
                 text=num_to_text(index) if index in self.candidate_set else "",
-                text_size=16, text_color="#777777"
+                text_size=size + 4, text_color="#777777"
             )
         )
 
@@ -68,7 +72,7 @@ class OneNumberCell(pydantic.BaseModel):
 
     def build(self, theme: Theme, root, parent, color, is_selected):
         return RectangleTextDrawer(
-            width=50, height=50,
+            width=48, height=48,
             color=color,
             text=num_to_text(self.value),
             text_size=30,

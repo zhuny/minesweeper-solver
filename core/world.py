@@ -1,6 +1,7 @@
 import pygame.time
 from pydantic import BaseModel
 
+from core.drawer import CenteredRectangle
 from core.theme import get_default_theme, Theme
 from core.traveler import EventHandleTraveler
 
@@ -37,26 +38,26 @@ class WorldDrawer(BaseModel):
         pygame.quit()
 
     def _init_node(self):
-        self._node = self.build(self._theme, self.data)
-
         s_width, s_height = self._screen.get_size()
-        self._node.pos.x = (s_width - self._node.pos.w) // 2
-        self._node.pos.y = (s_height - self._node.pos.h) // 2
+        self._node = CenteredRectangle(
+            child=self.build(self._theme, self.data),
+            width=s_width, height=s_height
+        )
+        self._node.pos.set_xy(0, 0)
 
     def _handle_event(self):
-        updated = False
         for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                self._is_running = False
-            elif e.type == pygame.MOUSEBUTTONUP:
-                if self._node.is_contained(e.pos):
-                    self._animation.extend(
-                        EventHandleTraveler(self._node, e.pos).visit()
-                    )
-                    updated = True
-
-        if updated:
-            self._is_draw_needed = True
+            match e.type:
+                case pygame.QUIT:
+                    self._is_running = False
+                case pygame.MOUSEBUTTONUP:
+                    if self._node.is_contained(e.pos):
+                        self._animation.extend(
+                            EventHandleTraveler(self._node, e.pos).visit()
+                        )
+                        self._is_draw_needed = True
+                case pygame.KEYDOWN:
+                    self._animation = []
 
     def _update(self):
         animation_list = []

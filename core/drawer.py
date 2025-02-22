@@ -72,6 +72,10 @@ class GeometryInfo(BaseModel):
     w: int | None = None
     h: int | None = None
 
+    def set_xy(self, x, y):
+        self.x = x
+        self.y = y
+
     def offset_rect(self, x, y):
         return GeometryInfo(
             x=self.x + x, y=self.y + y,
@@ -245,10 +249,6 @@ class TableDrawer(DrawerBase):
     cell_height: int
 
     def model_post_init(self, __context) -> None:
-        # value check
-        if self.color is None:
-            raise ValueError("Check color")
-
         # 각 column, row 별로 크기 계산
         row_size_container = MaxContainer()
         col_size_container = MaxContainer()
@@ -275,13 +275,34 @@ class TableDrawer(DrawerBase):
         self.pos.h = col_pos_list[-1]
 
     def draw(self, offset_x, offset_y, screen):
-        pygame.draw.rect(
-            screen, self.color.as_tuple(),
-            self.pos.offset_rect(offset_x, offset_y).as_tuple()
-        )
+        if self.color is not None:
+            pygame.draw.rect(
+                screen, self.color.as_tuple(),
+                self.pos.offset_rect(offset_x, offset_y).as_tuple()
+            )
 
         offset_x += self.pos.x
         offset_y += self.pos.y
 
         for cell in self.cell_list:
             cell.drawer.draw(offset_x, offset_y, screen)
+
+
+class CenteredRectangle(RectangleDrawer):
+    child: DrawerBase
+    width: int
+    height: int
+
+    def model_post_init(self, __context):
+        self.pos.w = self.width
+        self.pos.h = self.height
+
+        self.child.pos.x = (self.width - self.child.pos.w) // 2
+        self.child.pos.y = (self.height - self.child.pos.h) // 2
+
+    def draw(self, offset_x, offset_y, screen):
+        super().draw(offset_x, offset_y, screen)
+        self.child.draw(
+            offset_x + self.pos.x, offset_y + self.pos.y,
+            screen
+        )
