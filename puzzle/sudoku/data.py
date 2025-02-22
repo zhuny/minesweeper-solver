@@ -1,3 +1,4 @@
+import collections
 import functools
 
 import pydantic
@@ -8,6 +9,16 @@ from core.drawer import (ConstantGapInfo, GapListInfo,
 from core.theme import Theme
 from core.world import WorldData
 from puzzle.sudoku.handler import TableCellClickHandler
+from puzzle.sudoku.rule.grouping import BoxGroup, ColGroup, RowGroup
+
+
+def num_to_text(num: int | None) -> str:
+    if num is None:
+        return ''
+    elif num < 10:
+        return str(num)
+    else:
+        return chr(ord('A') + num - 10)
 
 
 class CandidateCell(pydantic.BaseModel):
@@ -42,7 +53,7 @@ class CandidateCell(pydantic.BaseModel):
             x=x, y=y,
             drawer=RectangleTextDrawer(
                 width=16, height=16,
-                text=index if index in self.candidate_set else "",
+                text=num_to_text(index) if index in self.candidate_set else "",
                 text_size=16, text_color="#777777"
             )
         )
@@ -59,7 +70,7 @@ class OneNumberCell(pydantic.BaseModel):
         return RectangleTextDrawer(
             width=50, height=50,
             color=color,
-            text=self.value,
+            text=num_to_text(self.value),
             text_size=30,
             text_color=self._get_text_color(theme, is_selected),
             on_click=[TableCellClickHandler(target=parent)]
@@ -93,6 +104,9 @@ class SudokuCell(pydantic.BaseModel):
             drawer=self.child.build(theme, root, self, color, self.is_selected)
         )
 
+    def is_candidate(self):
+        return isinstance(self.child, CandidateCell)
+
 
 class SudokuWorldData(WorldData):
     row: int
@@ -101,6 +115,8 @@ class SudokuWorldData(WorldData):
     cell_info: dict[tuple[int, int], SudokuCell] = pydantic.Field(
         default_factory=dict
     )
+
+    message: str = ""
 
     @functools.cached_property
     def size(self):
@@ -128,3 +144,56 @@ class SudokuWorldData(WorldData):
         for pos in range(0, self.size + 1, step):
             gap_list[pos] = 10
         return GapListInfo(value=gap_list)
+
+    def set_value(self, x, y, value):
+        # 규칙에 따라 지우기
+        for cell in self.cell_info.values():
+            if cell.x == x and cell.y == y:
+                cell.child = OneNumberCell(value=value)
+            elif self.is_match(cell, x, y) and cell.is_candidate():
+                cell.child.remove(value)
+
+        # 확정된 값 세팅
+        for cell in self.cell_info.values():
+            if cell.is_candidate():
+                if len(cell.child.candidate_list) == 1:
+                    self.set_value(cell.x, cell.y, cell.child.candidate_list[0])
+
+        return self.is_valid()
+
+    def is_match(self, cell, x, y):
+        for g in self._grouping():
+            if g.key(cell.x, cell.y) == g.key(x, y):
+                return True
+        return False
+
+    def is_valid(self):
+        # 칸에 넣을 숫자가 없는 경우
+        for cell in self.cell_info.values():
+            if cell.is_candidate():
+                if len(cell.child.candidate_list) == 0:
+                    return False
+
+        # 숫자를 넣을 칸이 없는 경우
+        group_number_count = collections.defaultdict(set)
+        for cell in self.cell_info.values():
+            number_list = []
+            if isinstance(cell.child, CandidateCell):
+                number_list.extend(cell.child.candidate_list)
+            elif isinstance(cell.child, OneNumberCell):
+                number_list.append(cell.child.value)
+
+            for g in self._grouping():
+                for number in number_list:
+                    group_number_count[g, g.key(cell.x, cell.y)].add(number)
+
+        for ns in group_number_count.values():
+            if len(ns) != self.size:
+                return False
+
+        return True
+
+    def _grouping(self):
+        yield RowGroup(self.row, self.col)
+        yield ColGroup(self.row, self.col)
+        yield BoxGroup(self.row, self.col)

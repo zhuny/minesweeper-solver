@@ -4,10 +4,11 @@ from puzzle.sudoku.solver import SudokuWorldSolver
 
 
 def main():
+    width = 1440
     SudokuWorldDrawer(
-        data=SudokuWorldData(row=3, col=3),
+        data=SudokuWorldData(row=4, col=3),
         solver=SudokuWorldSolver(),
-        screen_size=(1024, 600)
+        screen_size=(width, width * 9 // 16)
     ).main_loop()
 
 

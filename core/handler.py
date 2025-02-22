@@ -8,3 +8,8 @@ class EventHandler(BaseModel):
 
     def handle(self):
         raise NotImplementedError(type(self))
+
+    @staticmethod
+    def wait(frame_number):
+        for _ in range(frame_number):
+            yield
